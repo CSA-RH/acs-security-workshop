@@ -69,9 +69,10 @@ cd acs-security-workshop/01-setup
 
 ## Clean Up
 
-```bash
-oc --context security-ws delete project acs-workshop --ignore-not-found
-oc --context security-ws delete securitypolicies.config.stackrox.io -n stackrox -l workshop=acs-vuln-mgmt
-oc --context security-ws delete securedcluster --all -n stackrox && oc --context security-ws delete central --all -n stackrox
-oc --context security-ws delete project stackrox rhacs-operator
-```
+Every step folder ends with a **Clean Up** section. It undoes only that step, so you can repeat the
+step without errors. Later steps build on earlier ones, so clean up in **reverse order** (07 → 01)
+when you roll back more than one step.
+
+To tear down the whole workshop, including RHACS, follow the
+[step 1 Clean Up](./01-setup/README.md#clean-up). It also removes the policies from step 5 and the
+application namespace from step 2, in a safe order.

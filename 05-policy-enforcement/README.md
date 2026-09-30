@@ -167,6 +167,41 @@ are the `denied the request` message, the policy name, and the non-zero exit cod
 | OPA Gatekeeper / Kyverno admission policies | General-purpose Kubernetes policy engines. Good for configuration rules such as privileged pods or labels. They need an external data source to make CVE-based decisions. |
 | OpenShift SCC plus Pod Security Admission only | Built into the platform and always on. Covers pod privileges but not image vulnerabilities or registries. Use it together with RHACS, not instead of it. |
 
+## Clean Up
+
+This removes the workshop policies and returns the application to its end-of-step-4 state: every
+workload running, no enforcement. If you completed [step 6](../06-remediation/), run its clean-up
+first. It ends by pointing back here.
+
+```bash
+# 1. Test deployments from steps 4 and 5 (they may not exist)
+oc --context security-ws delete deployment nginx-test nginx-breakglass -n acs-workshop --ignore-not-found
+
+# 2. Remove the policies. config-controller deletes them from Central.
+oc --context security-ws delete securitypolicies.config.stackrox.io -n stackrox -l workshop=acs-vuln-mgmt --ignore-not-found
+
+# 3. Check that Central no longer has them (needs ROX_ENDPOINT and ROX_API_TOKEN from step 1)
+curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ROX_ENDPOINT}/v1/policies" \
+  | jq -r '.policies[].name' | grep -c '^Workshop - '     # expected: 0
+```
+
+If the count is not `0`, wait about 30 seconds and check again. Sensor and the admission controller
+receive the policy removal shortly after Central. Then restore the step 2 workloads. `node-agent`
+was deleted in step 5 and its re-creation was blocked, and the other two were scaled to 0.
+Recreating them gives a clean state:
+
+```bash
+# 4. Recreate the original vulnerable workloads (namespace, RBAC, and all three deployments)
+oc --context security-ws delete deployment legacy-frontend node-agent -n acs-workshop --ignore-not-found
+oc --context security-ws apply -f ../02-deploy-vulnerable-workloads/
+oc --context security-ws get pods -n acs-workshop -w
+```
+
+If `oc apply` is still denied by `policyeval.stackrox.io`, the policy removal has not reached the
+admission controller yet. Wait 30 seconds and run the command again.
+
+Optional: in **Violations**, resolve the *Emergency Deployment Annotation* alert from step 5, part 5.
+
 ## Next
 
 Continue with [`06-remediation/`](../06-remediation/).

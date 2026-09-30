@@ -97,6 +97,17 @@ graph shows `acs-workshop` without any NetworkPolicy.
 - [Managing network policies (Network Graph)](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/operating/manage-network-policies)
 - [Default security policies reference](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/operating/using-policies-to-provide-security)
 
+## Clean Up
+
+This step created no cluster resources. The runtime activity only produced violations and process
+events in Central, and re-running the step simply creates new ones. For a tidy starting point:
+
+1. If you locked the process baseline (Part B, step 8), go to **Risk → legacy-frontend → Process
+   discovery** and **unlock** it. A locked baseline keeps raising violations for any new process,
+   including the ones you generate on a re-run.
+2. Optional: in **Violations**, filter by **Namespace: `acs-workshop`** and **Lifecycle stage:
+   Runtime**. Select the alerts from the `oc exec` activity and click **Mark as resolved**.
+
 ## Next
 
 Continue with [`05-policy-enforcement/`](../05-policy-enforcement/).

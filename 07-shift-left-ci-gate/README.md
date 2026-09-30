@@ -155,6 +155,21 @@ the current vulnerability feed.
 | CI-tool-specific plugins or tasks | Tighter UI integration in one tool, but tied to that tool and its release cycle. They use the same RHACS API underneath. |
 | Admission control only (step 5) | Still needed as the last line of defense, but developers only find out at deploy time. |
 
+## Clean Up
+
+This step created no cluster resources. Remove the local artifacts and the CI token:
+
+```bash
+cd ../07-shift-left-ci-gate
+rm -rf rhacs-reports/
+rm -f ./roxctl          # only present if the script downloaded roxctl into this folder
+unset ROX_CI_TOKEN
+```
+
+Then revoke the `ci-gate` API token in **Platform Configuration → Integrations → Authentication
+Tokens → API Token**. Select `ci-gate` and revoke it. A re-run creates a new token, so the old one
+should not stay valid.
+
 ## Next
 
 You have completed the workshop. See the [top-level README](../README.md#clean-up) for clean-up.

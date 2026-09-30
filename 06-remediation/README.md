@@ -144,6 +144,37 @@ default-deny-all             <none>                1m
 | `EgressFirewall` (OVN-Kubernetes) | Namespace egress control by CIDR or DNS name. Useful when some outbound access must stay open. |
 | Virtual patching with WAF or Service Mesh rules | Filters `${jndi:` payloads at the edge. Adds defense in depth but can be bypassed by obfuscation, so it should not be the only control. |
 
+## Clean Up
+
+This returns the application to its end-of-step-5 state, so the remediation can be applied again.
+That state is: policies enforced, `legacy-frontend` and `node-agent` vulnerable and blocked, no
+NetworkPolicies, and a privileged namespace.
+
+```bash
+# 1. Remove the objects created by this step
+oc --context security-ws delete -f 04-network-policies.yaml --ignore-not-found
+oc --context security-ws delete secret legacy-frontend-db -n acs-workshop --ignore-not-found
+```
+
+2. Restore the vulnerable workloads. The step 5 policies block them while enforcement is on, so
+   follow the [step 5 Clean Up](../05-policy-enforcement/README.md#clean-up). It removes the
+   policies and recreates the namespace labels, the RBAC, and the original deployments.
+
+3. Re-apply the guardrails. Follow [step 5](../05-policy-enforcement/README.md#steps), steps 1–3:
+   apply the policies, check them, and click **Reassess All**. This also brings back the
+   `payments-api` exclusion if you removed it in step 7 of this README.
+
+4. If you cancelled the Log4Shell deferral in step 7 of this README, request and approve it again
+   ([step 3, Part D](../03-vulnerability-management/README.md#part-d--handle-a-cve-you-cannot-fix-right-away-request-an-exception)).
+
+Check before re-running this step:
+
+```bash
+oc --context security-ws get networkpolicy -n acs-workshop                      # No resources found
+oc --context security-ws get secret legacy-frontend-db -n acs-workshop         # NotFound
+oc --context security-ws get deploy -n acs-workshop      # legacy-frontend and node-agent at 0/0 after Reassess All
+```
+
 ## Next
 
 Continue with [`07-shift-left-ci-gate/`](../07-shift-left-ci-gate/).

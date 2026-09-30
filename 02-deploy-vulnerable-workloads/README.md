@@ -94,6 +94,30 @@ In the portal, **Violations** shows new alerts for the `acs-workshop` namespace.
 - [Understanding and managing pod security admission (OpenShift 4.19)](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/authentication_and_authorization/understanding-and-managing-pod-security-admission)
 - [Route configuration (OpenShift 4.19)](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/ingress_and_load_balancing/routes)
 
+## Clean Up
+
+This removes the workshop application, so you can deploy it again from scratch.
+
+> **Warning:** If you have already completed [step 5](../05-policy-enforcement/), its policies block
+> re-deploying these vulnerable workloads. Run the clean-up of the later steps first, in reverse
+> order (07 → 03).
+
+```bash
+oc --context security-ws delete project acs-workshop --ignore-not-found
+oc --context security-ws wait --for=delete namespace/acs-workshop --timeout=5m
+```
+
+The namespace deletion also removes the ServiceAccounts, the `anyuid` and `privileged`
+RoleBindings, the Services, and the Route. RHACS removes the deployments from **Risk** and resolves
+their deploy-time violations automatically. Runtime violations (from step 4) stay in **Violations**
+until you resolve them. They do not affect a re-run.
+
+Check before re-running:
+
+```bash
+oc --context security-ws get ns acs-workshop 2>&1 | grep -c NotFound      # expected: 1
+```
+
 ## Next
 
 Continue with [`03-vulnerability-management/`](../03-vulnerability-management/).

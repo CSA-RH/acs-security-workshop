@@ -15,6 +15,16 @@ spec:
     # Enforcement of policies that have enforcement enabled (default on new 4.9+ installs).
     # Kept explicit here because step 05 depends on it.
     enforcement: Enabled
+    replicas: 1
+  sensor:
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 256m
+        memory: 50Mi
   scannerV4:
     # AutoSense reuses the Scanner V4 deployed with Central in the same namespace.
     scannerComponent: AutoSense
+

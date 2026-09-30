@@ -134,6 +134,62 @@ status for Sensor, Collector, Admission Controller, and Scanner.
 - [RHACS 4.11 release notes](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/release_notes/release-notes-411)
 - [Installing Operators with OLM (OpenShift 4.19)](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/operators/user-tasks)
 
+## Clean Up
+
+This removes RHACS completely, so you can run this step again from a clean state. Clean up later
+steps first, in reverse order (07 → 02). If you only want to tear down everything quickly, run at
+least the first two commands below before deleting Central. `SecurityPolicy` resources must be
+removed while the `config-controller` is still running, or the `stackrox` namespace can hang in
+`Terminating`.
+
+```bash
+# 1. Policy-as-code resources from step 05, removed while config-controller still runs
+oc --context security-ws delete securitypolicies.config.stackrox.io -n stackrox --all --ignore-not-found
+
+# 2. Workshop application namespace from step 02 (skip if you want to keep it)
+oc --context security-ws delete project acs-workshop --ignore-not-found
+
+# 3. Secured cluster services, then Central. The operator finalizers uninstall their resources.
+oc --context security-ws delete securedcluster stackrox-secured-cluster-services -n stackrox --ignore-not-found --timeout=10m
+oc --context security-ws delete central stackrox-central-services -n stackrox --ignore-not-found --timeout=10m
+
+# 4. Namespace, including the PVCs (central-db, central-db-backup, scanner-v4-db), the CRS,
+#    and the sensor TLS secrets. Leftover certificates or databases would break a reinstall.
+oc --context security-ws delete project stackrox --ignore-not-found
+oc --context security-ws wait --for=delete namespace/stackrox --timeout=15m
+
+# 5. Safety net for cluster-scoped leftovers (normally already gone after step 3)
+oc --context security-ws delete validatingwebhookconfiguration stackrox --ignore-not-found
+oc --context security-ws get clusterrole,clusterrolebinding -o name | grep '/stackrox:' \
+  | xargs -r oc --context security-ws delete --ignore-not-found
+
+# 6. Operator
+oc --context security-ws delete subscription rhacs-operator -n rhacs-operator --ignore-not-found
+oc --context security-ws delete csv -n rhacs-operator -l operators.coreos.com/rhacs-operator.rhacs-operator --ignore-not-found
+oc --context security-ws delete project rhacs-operator --ignore-not-found
+oc --context security-ws wait --for=delete namespace/rhacs-operator --timeout=10m
+
+# 7. Local files and environment
+rm -f workshop-cluster-crs.yaml
+unset ROX_ENDPOINT ROX_ADMIN_PASSWORD ROX_API_TOKEN
+```
+
+Check that nothing is left:
+
+```bash
+oc --context security-ws get ns stackrox rhacs-operator acs-workshop 2>&1 | grep -c NotFound      # expected: 3
+oc --context security-ws get validatingwebhookconfiguration stackrox 2>&1 | grep -c NotFound      # expected: 1
+```
+
+> The RHACS CRDs (`*.platform.stackrox.io`, `securitypolicies.config.stackrox.io`) are kept on
+> purpose. They are harmless, and a reinstall reuses them. To remove them as well, run
+> `oc --context security-ws get crd -o name | grep stackrox.io | xargs -r oc --context security-ws delete`, but only after the
+> steps above, when no RHACS custom resources are left.
+>
+> If the OpenShift console shows a "failed to load plugin" notice for `advanced-cluster-security`
+> after the uninstall, it disappears after the next install, or when you disable the plugin under
+> **Administration → Cluster Settings → Configuration → Console → Console plugins**.
+
 ## Next
 
 Continue with [`02-deploy-vulnerable-workloads/`](../02-deploy-vulnerable-workloads/).
