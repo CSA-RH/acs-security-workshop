@@ -8,7 +8,7 @@ removed yet):
 
 | Deployment | Strategy | How |
 |---|---|---|
-| `legacy-frontend` | **Remediate** | Rebase from upstream `nginx:1.22.0-alpine` to the supported Red Hat `ubi9/nginx-124` image. Run as non-root under `restricted-v2`. Move the plaintext secret into a `Secret`. |
+| `legacy-frontend` | **Remediate** | Rebase from upstream `nginx:1.22.0-alpine` to the Red Hat hardened image `hi/nginx` (minimal, distroless, non-root). Run under `restricted-v2`. Move the plaintext secret into a `Secret`. |
 | `node-agent` | **Remediate** | Current `ubi9/ubi-minimal` base image. Remove privileged mode, host namespaces, and the host mount. Remove the SCC grant. |
 | `payments-api` | **Mitigate** (compensating control) | No patched build exists. Apply a default-deny NetworkPolicy that blocks all egress, including DNS, so the Log4Shell JNDI callback cannot connect. Allow ingress only from the frontend. The CVE stays formally deferred (step 3) and excluded from enforcement (step 5) until a fixed image is available. |
 
@@ -27,7 +27,7 @@ risk went down.
 | File | Role |
 |---|---|
 | `01-namespace-restricted.yaml` | Namespace back to Pod Security Admission `restricted` |
-| `02-legacy-frontend-hardened.yaml` | Hardened frontend Deployment and Service (UBI 9 NGINX 1.24, non-root, secret from `Secret`) |
+| `02-legacy-frontend-hardened.yaml` | Hardened frontend Deployment and Service (Red Hat hardened image `hi/nginx`: minimal, distroless, non-root; secret from `Secret`) |
 | `03-node-agent-hardened.yaml` | Hardened agent Deployment (UBI 9 minimal, no privileges, read-only root filesystem) |
 | `04-network-policies.yaml` | Default deny plus the minimal allow rules. Serves as the Log4Shell compensating control. |
 
@@ -66,9 +66,13 @@ risk went down.
 
 5. Check the application and the compensating control:
    ```bash
-   # Frontend is served again through the Route (by the Red Hat NGINX image, non-root)
+   # Frontend is served again through the Route (by the Red Hat hardened NGINX image)
    curl -sI "https://$(oc --context security-ws get route legacy-frontend -n acs-workshop -o jsonpath='{.spec.host}')" | head -3
-   oc --context security-ws exec -n acs-workshop deploy/legacy-frontend -- id
+
+   # It runs with the random, non-root UID assigned by the restricted-v2 SCC.
+   # (The image is distroless: there is no shell or "id" command to exec into.)
+   oc --context security-ws get pod -n acs-workshop -l app=legacy-frontend \
+     -o jsonpath='{.items[0].spec.containers[0].securityContext.runAsUser}{"\n"}'
 
    # payments-api can no longer resolve names or open outbound connections (Log4Shell callback path)
    oc --context security-ws exec -n acs-workshop deploy/payments-api -- sh -c 'wget -T 3 -qO- http://example.com >/dev/null && echo OPEN || echo BLOCKED'
@@ -77,7 +81,9 @@ risk went down.
 6. Confirm in RHACS that the risk is lower. Allow 1–2 minutes for re-evaluation:
    - **Risk** (namespace `acs-workshop`): `node-agent` and `legacy-frontend` fall down the ranking.
      Their risk indicators no longer show privileged mode, root, external secrets in env vars, or
-     old images.
+     old images. `legacy-frontend` now runs a distroless image with no shell or package manager:
+     the *Components Useful for Attackers* indicator disappears, and so does the `oc exec` attack
+     path from step 4. Try `oc --context security-ws exec -n acs-workshop deploy/legacy-frontend -- sh`.
    - **Violations**: the deploy-time violations for the old pod specs are **resolved**. Only
      `payments-api` still shows *Log4Shell* and *untrusted registry*, both inform-only.
    - **Vulnerability Management → Results** (namespace `acs-workshop`): the fixable
@@ -102,11 +108,11 @@ payments-api-xxxxxxxxxx-xxxxx      1/1     Running   0          70m
 
 $ curl -sI https://legacy-frontend-acs-workshop.apps.<cluster-domain> | head -3
 HTTP/1.1 200 OK
-server: nginx/1.24.x
+server: nginx/1.30.x
 ...
 
-$ oc --context security-ws exec -n acs-workshop deploy/legacy-frontend -- id
-uid=1000xxxxxx(1000xxxxxx) gid=0(root) groups=0(root),1000xxxxxx
+$ oc --context security-ws get pod -n acs-workshop -l app=legacy-frontend -o jsonpath='...runAsUser...'
+1000xxxxxx
 
 $ oc --context security-ws exec -n acs-workshop deploy/payments-api -- sh -c 'wget ... || echo BLOCKED'
 wget: bad address 'example.com'
@@ -120,10 +126,15 @@ allow-router-to-frontend     app=legacy-frontend   1m
 default-deny-all             <none>                1m
 ```
 
-> The `latest` Red Hat images are rebuilt often and usually have no fixable Important CVEs. If a new
-> erratum is published between rebuilds, the admission controller correctly blocks the rollout. Pin
-> to the newest digest in that case, or update the image when the rebuild ships. This is the
-> guardrail doing its job.
+> **Troubleshooting: the hardened image is blocked.** Red Hat rebuilds its images often, but an
+> erratum can be published between two rebuilds. Then the admission controller rejects the rollout
+> with *Workshop - Fixable CVEs of severity Important or higher*, listing the new CVEs and their
+> fixed versions. This is the guardrail doing its job, not a mistake in the manifest. Red Hat
+> hardened images (`registry.access.redhat.com/hi/...`) are rebuilt continuously and contain very few
+> packages, so this is rare with them. If it happens, wait for the next rebuild and apply again.
+> Run step 1 (`roxctl deployment check`) first: it scans the images ahead of time, so admission
+> does not have to scan a never-seen image inline, and a scan timeout cannot let it through
+> unevaluated.
 
 ## Official Documentation
 
@@ -131,6 +142,7 @@ default-deny-all             <none>                1m
 - [Managing network policies in RHACS (Network Graph, baselines, simulation)](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/operating/manage-network-policies)
 - [Build-time network policy tools (`roxctl netpol generate`)](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/operating/build-time-network-policy-tools)
 - [Managing vulnerabilities: exception workflow](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/operating/managing-vulnerabilities)
+- [RHACS 4.11 release notes: known issue on vulnerability reporting for Red Hat hardened images (Project Hummingbird)](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/release_notes/release-notes-411)
 - [Network policy (OpenShift 4.19)](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/network_security/network-policy)
 - [Managing Security Context Constraints (OpenShift 4.19)](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/authentication_and_authorization/managing-pod-security-policies)
 - [Understanding and managing pod security admission (OpenShift 4.19)](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/authentication_and_authorization/understanding-and-managing-pod-security-admission)

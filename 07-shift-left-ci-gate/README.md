@@ -78,7 +78,7 @@ image the admission controller would reject never gets built and promoted.
 4. **Run the gate against the remediated image and manifest** (expected: **PASS**):
    ```bash
    ROX_API_TOKEN="$ROX_CI_TOKEN" ROX_TLS_FLAG=--insecure-skip-tls-verify \
-   IMAGE=registry.access.redhat.com/ubi9/nginx-124:latest \
+   IMAGE=registry.access.redhat.com/hi/nginx:1 \
    MANIFESTS="../06-remediation/02-legacy-frontend-hardened.yaml" \
    ROX_CLUSTER=workshop-cluster \
      ./rox-ci-gate.sh ; echo "exit code: $?"

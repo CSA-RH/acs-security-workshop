@@ -1,6 +1,7 @@
 # 02-legacy-frontend-hardened.yaml
 # Purpose: Fixes legacy-frontend.
-#  - rebased on the supported Red Hat UBI 9 NGINX 1.24 image (security errata, non-root, port 8080)
+#  - rebased on the Red Hat hardened NGINX image (registry.access.redhat.com/hi/nginx, minimal and
+#    distroless: no shell or package manager, non-root, port 8080)
 #  - runs under the default restricted-v2 SCC (the anyuid RoleBinding is removed in README step 2)
 #  - DB_PASSWORD comes from a Secret instead of a plaintext env var
 #  - drops all capabilities, no privilege escalation, RuntimeDefault seccomp, resource limits
@@ -27,7 +28,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: nginx
-          image: registry.access.redhat.com/ubi9/nginx-124:latest
+          image: registry.access.redhat.com/hi/nginx:1
           ports:
             - containerPort: 8080
           env:
