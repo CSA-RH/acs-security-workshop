@@ -11,9 +11,10 @@ RHACS portal and an authenticated `roxctl` CLI, which every later step uses.
 ## Prerequisites
 
 - OpenShift Container Platform 4.19 or later (a fresh install is fine)
-- `oc` CLI logged in as a user with `cluster-admin`
+- `oc` CLI logged in as a user with `cluster-admin`, with the kubeconfig context named `security-ws` (see the [top-level Quick Start](../README.md#quick-start))
 - `jq` and `curl` on your workstation
 - Outbound internet access from the cluster (to `registry.redhat.io` and to the vulnerability feeds Scanner V4 downloads)
+- At least 2 worker nodes (tested on ROSA HCP with 2 workers). `04-central.yaml` is sized for this footprint.
 - Sizing guidance: [Default resource requirements for RHACS](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/installing/acs-default-requirements)
 
 ## Files
@@ -23,7 +24,7 @@ RHACS portal and an authenticated `roxctl` CLI, which every later step uses.
 | `01-namespaces.yaml` | `rhacs-operator` and `stackrox` namespaces |
 | `02-operatorgroup.yaml` | All-namespaces OperatorGroup for the RHACS Operator |
 | `03-subscription.yaml` | OLM Subscription to `rhacs-operator` (`stable` channel) |
-| `04-central.yaml` | `Central` CR: Central, Central DB, Scanner V4, and a Route |
+| `04-central.yaml` | `Central` CR: Central, Central DB, Scanner V4 (legacy StackRox Scanner disabled), and a Route. Explicit resources and single-replica scanners for small clusters. |
 | `05-secured-cluster.yaml` | `SecuredCluster` CR: Sensor, Collector, Admission Controller (with enforcement) |
 
 ## Steps
@@ -36,26 +37,26 @@ RHACS portal and an authenticated `roxctl` CLI, which every later step uses.
 
 2. Install the RHACS Operator:
    ```bash
-   oc apply -f 01-namespaces.yaml -f 02-operatorgroup.yaml -f 03-subscription.yaml
+   oc --context security-ws apply -f 01-namespaces.yaml -f 02-operatorgroup.yaml -f 03-subscription.yaml
    ```
 
 3. Wait for the Operator CSV to reach `Succeeded`, then check that it is a 4.11.x version:
    ```bash
-   oc get csv -n rhacs-operator -w
+   oc --context security-ws get csv -n rhacs-operator -w
    ```
 
 4. Deploy Central, then wait for it. Scanner V4 needs a few extra minutes to load vulnerability data.
    ```bash
-   oc apply -f 04-central.yaml
-   oc wait central/stackrox-central-services -n stackrox \
+   oc --context security-ws apply -f 04-central.yaml
+   oc --context security-ws wait central/stackrox-central-services -n stackrox \
      --for=condition=Deployed --timeout=15m
-   oc get pods -n stackrox
+   oc --context security-ws get pods -n stackrox
    ```
 
 5. Get the portal URL and the generated `admin` password, then create an API token for `roxctl`:
    ```bash
-   export ROX_ENDPOINT="$(oc get route central -n stackrox -o jsonpath='{.spec.host}'):443"
-   export ROX_ADMIN_PASSWORD="$(oc get secret central-htpasswd -n stackrox \
+   export ROX_ENDPOINT="$(oc --context security-ws get route central -n stackrox -o jsonpath='{.spec.host}'):443"
+   export ROX_ADMIN_PASSWORD="$(oc --context security-ws get secret central-htpasswd -n stackrox \
      -o go-template='{{index .data "password" | base64decode}}')"
 
    export ROX_API_TOKEN="$(curl -sk -u "admin:${ROX_ADMIN_PASSWORD}" \
@@ -80,24 +81,24 @@ RHACS portal and an authenticated `roxctl` CLI, which every later step uses.
    ```bash
    roxctl central crs generate workshop-cluster \
      --insecure-skip-tls-verify --output workshop-cluster-crs.yaml
-   oc apply -n stackrox -f workshop-cluster-crs.yaml
+   oc --context security-ws apply -n stackrox -f workshop-cluster-crs.yaml
    ```
    > The CRS file holds credentials. Do not commit it (it is listed in `.gitignore`).
 
 8. Deploy the secured cluster services:
    ```bash
-   oc apply -f 05-secured-cluster.yaml
-   oc get pods -n stackrox -w
+   oc --context security-ws apply -f 05-secured-cluster.yaml
+   oc --context security-ws get pods -n stackrox -w
    ```
 
 ## Expected Output
 
 ```text
-$ oc get csv -n rhacs-operator
+$ oc --context security-ws get csv -n rhacs-operator
 NAME                     DISPLAY                                          VERSION   PHASE
 rhacs-operator.v4.11.4   Advanced Cluster Security for Kubernetes         4.11.4    Succeeded
 
-$ oc get pods -n stackrox
+$ oc --context security-ws get pods -n stackrox
 NAME                                  READY   STATUS    RESTARTS   AGE
 admission-control-xxxxxxxxxx-xxxxx    1/1     Running   0          3m
 central-xxxxxxxxxx-xxxxx              1/1     Running   0          12m

@@ -45,21 +45,21 @@ risk went down.
 2. Remove the excess privileges. RoleBindings are removed imperatively because a declarative
    `apply` does not delete objects:
    ```bash
-   oc delete rolebinding legacy-frontend-anyuid node-agent-privileged -n acs-workshop
+   oc --context security-ws delete rolebinding legacy-frontend-anyuid node-agent-privileged -n acs-workshop
    ```
 
 3. Put the database password into a `Secret`. It is generated at apply time and never stored in Git:
    ```bash
-   oc create secret generic legacy-frontend-db -n acs-workshop \
+   oc --context security-ws create secret generic legacy-frontend-db -n acs-workshop \
      --from-literal=DB_PASSWORD="$(openssl rand -base64 18)"
    ```
 
 4. Apply the remediation:
    ```bash
-   oc apply -f 01-namespace-restricted.yaml
-   oc apply -f 02-legacy-frontend-hardened.yaml -f 03-node-agent-hardened.yaml
-   oc apply -f 04-network-policies.yaml
-   oc get pods -n acs-workshop -w
+   oc --context security-ws apply -f 01-namespace-restricted.yaml
+   oc --context security-ws apply -f 02-legacy-frontend-hardened.yaml -f 03-node-agent-hardened.yaml
+   oc --context security-ws apply -f 04-network-policies.yaml
+   oc --context security-ws get pods -n acs-workshop -w
    ```
    The admission controller admits these updates, including scaling back to 1 replica, because the
    new pod specs no longer violate the enforced policies.
@@ -67,11 +67,11 @@ risk went down.
 5. Check the application and the compensating control:
    ```bash
    # Frontend is served again through the Route (by the Red Hat NGINX image, non-root)
-   curl -sI "https://$(oc get route legacy-frontend -n acs-workshop -o jsonpath='{.spec.host}')" | head -3
-   oc exec -n acs-workshop deploy/legacy-frontend -- id
+   curl -sI "https://$(oc --context security-ws get route legacy-frontend -n acs-workshop -o jsonpath='{.spec.host}')" | head -3
+   oc --context security-ws exec -n acs-workshop deploy/legacy-frontend -- id
 
    # payments-api can no longer resolve names or open outbound connections (Log4Shell callback path)
-   oc exec -n acs-workshop deploy/payments-api -- sh -c 'wget -T 3 -qO- http://example.com >/dev/null && echo OPEN || echo BLOCKED'
+   oc --context security-ws exec -n acs-workshop deploy/payments-api -- sh -c 'wget -T 3 -qO- http://example.com >/dev/null && echo OPEN || echo BLOCKED'
    ```
 
 6. Confirm in RHACS that the risk is lower. Allow 1–2 minutes for re-evaluation:
@@ -93,7 +93,7 @@ risk went down.
 ## Expected (Working) Output
 
 ```text
-$ oc get pods -n acs-workshop
+$ oc --context security-ws get pods -n acs-workshop
 NAME                               READY   STATUS    RESTARTS   AGE
 legacy-frontend-yyyyyyyyyy-yyyyy   1/1     Running   0          45s
 node-agent-yyyyyyyyyy-yyyyy        1/1     Running   0          45s
@@ -104,14 +104,14 @@ HTTP/1.1 200 OK
 server: nginx/1.24.x
 ...
 
-$ oc exec -n acs-workshop deploy/legacy-frontend -- id
+$ oc --context security-ws exec -n acs-workshop deploy/legacy-frontend -- id
 uid=1000xxxxxx(1000xxxxxx) gid=0(root) groups=0(root),1000xxxxxx
 
-$ oc exec -n acs-workshop deploy/payments-api -- sh -c 'wget ... || echo BLOCKED'
+$ oc --context security-ws exec -n acs-workshop deploy/payments-api -- sh -c 'wget ... || echo BLOCKED'
 wget: bad address 'example.com'
 BLOCKED
 
-$ oc get networkpolicy -n acs-workshop
+$ oc --context security-ws get networkpolicy -n acs-workshop
 NAME                         POD-SELECTOR          AGE
 allow-frontend-egress        app=legacy-frontend   1m
 allow-frontend-to-payments   app=payments-api      1m

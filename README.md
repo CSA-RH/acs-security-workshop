@@ -17,8 +17,9 @@ before they reach the cluster.
 |---|---|
 | OpenShift version | OpenShift Container Platform 4.19+ (4.19 or later is required for the RHACS console plugin used in step 3) |
 | RHACS | Red Hat Advanced Cluster Security for Kubernetes 4.11 (Operator, `stable` channel) with Scanner V4 |
-| Platform | Any OpenShift 4.19+ installation with internet access (AWS, bare metal, ROSA, ARO, and so on) |
-| Sizing | At least 3 worker nodes with 4 vCPU / 16 GiB each. Central, Scanner V4, and the secured cluster services all run on the same cluster. |
+| Platform | Any OpenShift 4.19+ installation with internet access. Tested footprint: ROSA with hosted control planes (HCP) and 2 worker nodes. |
+| Sizing | Central, Scanner V4, and the secured cluster services all run on the same cluster. [`01-setup/04-central.yaml`](./01-setup/04-central.yaml) sets explicit requests and limits and disables the legacy StackRox Scanner, so everything fits on 2 worker nodes. |
+| `oc` context | Every `oc` command uses `--context security-ws`. See [Quick Start](#quick-start). |
 | CLI tools | `oc`, `roxctl` 4.11, `jq`, `curl` |
 
 > **Warning:** This workshop deploys workloads that are vulnerable and over-privileged **on purpose**
@@ -38,6 +39,15 @@ before they reach the cluster.
 | [`07-shift-left-ci-gate/`](./07-shift-left-ci-gate/) | Block vulnerable images before deploy with a CI-agnostic `roxctl` gate (`image check`, `deployment check`, SBOM, JUnit reports) |
 
 ## Quick Start
+
+All `oc` commands in this workshop target the kubeconfig context `security-ws`, so they cannot hit
+another cluster by accident. Create the context once after logging in to the workshop cluster:
+
+```bash
+oc login --server=https://api.<workshop-cluster-domain>:443 -u cluster-admin
+oc config rename-context "$(oc config current-context)" security-ws
+oc --context security-ws whoami --show-server
+```
 
 Start with [`01-setup/`](./01-setup/) on a clean cluster, then work through the folders in order.
 Each step depends on the state left by the previous one. Plan for about 3 hours in total:
@@ -60,8 +70,8 @@ cd acs-security-workshop/01-setup
 ## Clean Up
 
 ```bash
-oc delete project acs-workshop --ignore-not-found
-oc delete securitypolicies.config.stackrox.io -n stackrox -l workshop=acs-vuln-mgmt
-oc delete securedcluster --all -n stackrox && oc delete central --all -n stackrox
-oc delete project stackrox rhacs-operator
+oc --context security-ws delete project acs-workshop --ignore-not-found
+oc --context security-ws delete securitypolicies.config.stackrox.io -n stackrox -l workshop=acs-vuln-mgmt
+oc --context security-ws delete securedcluster --all -n stackrox && oc --context security-ws delete central --all -n stackrox
+oc --context security-ws delete project stackrox rhacs-operator
 ```

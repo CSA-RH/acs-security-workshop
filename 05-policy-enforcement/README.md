@@ -37,12 +37,12 @@ other workloads on the cluster.
 1. Apply the policies. They must be created in the namespace where Central runs:
    ```bash
    cd ../05-policy-enforcement
-   oc apply -f .
+   oc --context security-ws apply -f .
    ```
 
 2. Check that Central accepted each policy:
    ```bash
-   oc get securitypolicies -n stackrox -l workshop=acs-vuln-mgmt \
+   oc --context security-ws get securitypolicies -n stackrox -l workshop=acs-vuln-mgmt \
      -o custom-columns=NAME:.metadata.name,ACCEPTED:.status.accepted,POLICY_ID:.status.policyId,MESSAGE:.status.message
    ```
    The policies now appear under **Platform Configuration → Policy Management**, marked as managed
@@ -52,33 +52,33 @@ other workloads on the cluster.
    Kubernetes event for them. To apply them now, go to **Policy Management** and click
    **Reassess All**. Then watch the result:
    ```bash
-   oc get deploy -n acs-workshop -w
+   oc --context security-ws get deploy -n acs-workshop -w
    ```
    Sensor scales `legacy-frontend` (fixable Important CVEs) and `node-agent` (privileged, and old
    image) to **0 replicas**. `payments-api` keeps running because it is covered by the exclusion.
 
 4. **Hard enforcement at admission.** Try to create a new deployment from the vulnerable image:
    ```bash
-   oc create deployment nginx-test -n acs-workshop --image=docker.io/library/nginx:1.14.0
+   oc --context security-ws create deployment nginx-test -n acs-workshop --image=docker.io/library/nginx:1.14.0
    ```
    Then try to recreate the privileged agent:
    ```bash
-   oc delete -f ../02-deploy-vulnerable-workloads/05-node-agent.yaml
-   oc apply  -f ../02-deploy-vulnerable-workloads/05-node-agent.yaml
+   oc --context security-ws delete -f ../02-deploy-vulnerable-workloads/05-node-agent.yaml
+   oc --context security-ws apply -f ../02-deploy-vulnerable-workloads/05-node-agent.yaml
    ```
    The API server rejects both requests. See the expected output below.
 
 5. **Emergency bypass (break-glass).** Enforcement can be bypassed on purpose, and every bypass is
    audited:
    ```bash
-   oc create deployment nginx-breakglass -n acs-workshop --image=docker.io/library/nginx:1.14.0 \
+   oc --context security-ws create deployment nginx-breakglass -n acs-workshop --image=docker.io/library/nginx:1.14.0 \
      --dry-run=client -o yaml \
-     | oc annotate --local -f - admission.stackrox.io/break-glass=TICKET-456 -o yaml \
-     | oc apply -f -
+     | oc --context security-ws annotate --local -f - admission.stackrox.io/break-glass=TICKET-456 -o yaml \
+     | oc --context security-ws apply -f -
    ```
    The deployment is admitted, and **Violations** shows a new *Emergency Deployment Annotation*
    alert. Remove it when you are done:
-   `oc delete deployment nginx-breakglass -n acs-workshop`.
+   `oc --context security-ws delete deployment nginx-breakglass -n acs-workshop`.
 
 6. **Shift-left preview.** Run the same policies as a build-time check from the CLI:
    ```bash
@@ -96,20 +96,20 @@ other workloads on the cluster.
 ## Expected Output
 
 ```text
-$ oc get securitypolicies -n stackrox -l workshop=acs-vuln-mgmt -o custom-columns=...
+$ oc --context security-ws get securitypolicies -n stackrox -l workshop=acs-vuln-mgmt -o custom-columns=...
 NAME                              ACCEPTED   POLICY_ID                              MESSAGE
 workshop-fixable-important-cves   true       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 workshop-log4shell                true       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 workshop-no-privileged            true       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 workshop-trusted-registries       true       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
-$ oc get deploy -n acs-workshop          # after "Reassess All"
+$ oc --context security-ws get deploy -n acs-workshop          # after "Reassess All"
 NAME              READY   UP-TO-DATE   AVAILABLE   AGE
 legacy-frontend   0/0     0            0           40m
 node-agent        0/0     0            0           40m
 payments-api      1/1     1            1           40m
 
-$ oc create deployment nginx-test -n acs-workshop --image=docker.io/library/nginx:1.14.0
+$ oc --context security-ws create deployment nginx-test -n acs-workshop --image=docker.io/library/nginx:1.14.0
 error: failed to create deployment: admission webhook "policyeval.stackrox.io" denied the request:
 The attempted operation violated 1 enforced policy, described below:
 

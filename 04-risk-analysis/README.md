@@ -42,9 +42,9 @@ create some suspicious runtime activity, watch it change the ranking, trace real
 6. Simulate what an attacker does after getting in: open a shell, run a package manager, and read a
    host file through the privileged agent:
    ```bash
-   oc exec -n acs-workshop deploy/legacy-frontend -- apt-get -v
-   oc exec -n acs-workshop deploy/legacy-frontend -- sh -c 'id; cat /etc/passwd | head -3'
-   oc exec -n acs-workshop deploy/node-agent -- sh -c 'cat /host/etc/hostname; ls /host/var/lib/kubelet | head -3'
+   oc --context security-ws exec -n acs-workshop deploy/legacy-frontend -- apt-get -v
+   oc --context security-ws exec -n acs-workshop deploy/legacy-frontend -- sh -c 'id; cat /etc/passwd | head -3'
+   oc --context security-ws exec -n acs-workshop deploy/node-agent -- sh -c 'cat /host/etc/hostname; ls /host/var/lib/kubelet | head -3'
    ```
 7. Wait about 1 minute, then check:
    - **Violations**: new runtime alerts such as *Ubuntu Package Manager Execution* and *Kubernetes

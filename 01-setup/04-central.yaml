@@ -9,8 +9,47 @@ metadata:
   namespace: stackrox
 spec:
   central:
+    db:
+      resources:
+        limits:
+          cpu: "1"
+          memory: 1Gi
+        requests:
+          cpu: 256m
+          memory: 50Mi
     exposure:
       route:
         enabled: true
+    resources:
+      limits:
+        cpu: "2"
+        memory: 2Gi
+      requests:
+        cpu: 256m
+        memory: 512Mi
+  scanner:
+    scannerComponent: Disabled
   scannerV4:
+    indexer:
+      resources:
+        limits:
+          cpu: 1
+          memory: 1Gi
+        requests:
+          cpu: 256m
+          memory: 50Mi
+      scaling:
+        autoScaling: Disabled
+        replicas: 1
+    matcher:
+      resources:
+        limits:
+          cpu: 2
+          memory: 4Gi
+        requests:
+          cpu: 256m
+          memory: 50Mi
+      scaling:
+        autoScaling: Disabled
+        replicas: 1
     scannerComponent: Enabled
