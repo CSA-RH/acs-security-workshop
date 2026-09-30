@@ -53,20 +53,24 @@ RHACS portal and an authenticated `roxctl` CLI, which every later step uses.
    oc --context security-ws get pods -n stackrox
    ```
 
-5. Get the portal URL and the generated `admin` password, then create an API token for `roxctl`:
+5. Set the workshop variables and get the portal credentials with [`env.sh`](./env.sh). It must be
+   **sourced**, not executed: running `./env.sh` would lose the variables when it exits, so the
+   script refuses to run that way.
    ```bash
-   export ROX_ENDPOINT="$(oc --context security-ws get route central -n stackrox -o jsonpath='{.spec.host}'):443"
-   export ROX_ADMIN_PASSWORD="$(oc --context security-ws get secret central-htpasswd -n stackrox \
-     -o go-template='{{index .data "password" | base64decode}}')"
-
-   export ROX_API_TOKEN="$(curl -sk -u "admin:${ROX_ADMIN_PASSWORD}" \
-     "https://${ROX_ENDPOINT}/v1/apitokens/generate" \
-     -d '{"name":"workshop-admin","roles":["Admin"]}' | jq -r .token)"
-
-   echo "Portal: https://${ROX_ENDPOINT%:443}   user: admin   password: ${ROX_ADMIN_PASSWORD}"
+   source ./env.sh
    ```
-   `roxctl` reads `ROX_ENDPOINT` and `ROX_API_TOKEN` from the environment automatically. Keep this
-   shell open, or save the exports to a file, for the rest of the workshop.
+   It prints the portal URL and the generated `admin` password, and sets:
+
+   | Variable | Content |
+   |---|---|
+   | `ROX_ENDPOINT` / `ROX_CENTRAL_ADDRESS` | Central Route, as `host:443` |
+   | `ROX_API_TOKEN` | API token with the `Admin` role, used by `roxctl` in every step |
+   | `ROX_CI_TOKEN` | API token with the `Continuous Integration` role, used by the CI gate in step 7 |
+
+   The admin password is used only to create the tokens and is never exported. `roxctl` then
+   authenticates with `ROX_API_TOKEN`, which it reads from the environment automatically. Keep this
+   shell open for the rest of the workshop. Sourcing it again in the same shell reuses the tokens
+   that are already set. In a new shell, `source ./env.sh` creates a new pair of tokens.
 
 6. Install `roxctl` 4.11 (it must match the Central version):
    ```bash
@@ -171,7 +175,7 @@ oc --context security-ws wait --for=delete namespace/rhacs-operator --timeout=10
 
 # 7. Local files and environment
 rm -f workshop-cluster-crs.yaml
-unset ROX_ENDPOINT ROX_ADMIN_PASSWORD ROX_API_TOKEN
+unset ROX_ENDPOINT ROX_CENTRAL_ADDRESS ROX_API_TOKEN ROX_CI_TOKEN
 ```
 
 Check that nothing is left:

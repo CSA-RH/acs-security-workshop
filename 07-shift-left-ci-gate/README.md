@@ -33,16 +33,26 @@ image the admission controller would reject never gets built and promoted.
 
 ## Steps
 
-1. **Create a least-privilege CI token.** Use the built-in *Continuous Integration* role, not
-   `Admin`. In the portal: **Platform Configuration → Integrations → API Token → Generate token**.
-   Or from the workshop shell:
+1. **Check the CI token.** `../01-setup/env.sh` already created an API token with the built-in
+   *Continuous Integration* role (least privilege, not `Admin`) and stored it in `ROX_CI_TOKEN`.
+   Check that it is set:
    ```bash
-   export ROX_CI_TOKEN="$(curl -sk -u "admin:${ROX_ADMIN_PASSWORD}" \
+   echo "$ROX_CI_TOKEN"
+   ```
+   If it prints an empty line or `null` (for example, you are in a new shell, or you ran `./env.sh`
+   instead of sourcing it), create the token again. The admin password is read into the request
+   only, so `roxctl` never sees it:
+   ```bash
+   export ROX_CI_TOKEN="$(curl -sk -u "admin:$(oc --context security-ws get secret central-htpasswd -n stackrox \
+     -o go-template='{{index .data "password" | base64decode}}')" \
      "https://${ROX_ENDPOINT}/v1/apitokens/generate" \
      -d '{"name":"ci-gate","roles":["Continuous Integration"]}' | jq -r .token)"
+   echo "$ROX_CI_TOKEN"
    ```
-   In a real pipeline, store it as a masked, protected CI secret called `ROX_API_TOKEN`, together
-   with `ROX_ENDPOINT` (`<central-route-host>:443`).
+   If `ROX_ENDPOINT` is empty too, run `source ../01-setup/env.sh` instead. It sets all the variables.
+
+   In a real pipeline, store the token as a masked, protected CI secret called `ROX_API_TOKEN`,
+   together with `ROX_ENDPOINT` (`<central-route-host>:443`).
 
 2. **The gate as plain `roxctl` lines.** These are the commands to paste into any CI tool:
    ```bash
