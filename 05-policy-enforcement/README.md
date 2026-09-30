@@ -59,7 +59,7 @@ other workloads on the cluster.
 
 4. **Hard enforcement at admission.** Try to create a new deployment from the vulnerable image:
    ```bash
-   oc --context security-ws create deployment nginx-test -n acs-workshop --image=docker.io/library/nginx:1.14.0
+   oc --context security-ws create deployment nginx-test -n acs-workshop --image=docker.io/library/nginx:1.22.0-alpine
    ```
    Then try to recreate the privileged agent:
    ```bash
@@ -71,7 +71,7 @@ other workloads on the cluster.
 5. **Emergency bypass (break-glass).** Enforcement can be bypassed on purpose, and every bypass is
    audited:
    ```bash
-   oc --context security-ws create deployment nginx-breakglass -n acs-workshop --image=docker.io/library/nginx:1.14.0 \
+   oc --context security-ws create deployment nginx-breakglass -n acs-workshop --image=docker.io/library/nginx:1.22.0-alpine \
      --dry-run=client -o yaml \
      | oc --context security-ws annotate --local -f - admission.stackrox.io/break-glass=TICKET-456 -o yaml \
      | oc --context security-ws apply -f -
@@ -109,7 +109,7 @@ legacy-frontend   0/0     0            0           40m
 node-agent        0/0     0            0           40m
 payments-api      1/1     1            1           40m
 
-$ oc --context security-ws create deployment nginx-test -n acs-workshop --image=docker.io/library/nginx:1.14.0
+$ oc --context security-ws create deployment nginx-test -n acs-workshop --image=docker.io/library/nginx:1.22.0-alpine
 error: failed to create deployment: admission webhook "policyeval.stackrox.io" denied the request:
 The attempted operation violated 1 enforced policy, described below:
 

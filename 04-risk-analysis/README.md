@@ -21,8 +21,9 @@ create some suspicious runtime activity, watch it change the ranking, trace real
 ### Part A — Read the Risk ranking
 
 1. In the RHACS portal, open **Risk** and filter by **Namespace: `acs-workshop`**.
-2. Compare the **Priority** column with the CVE counts from step 3. `legacy-frontend` has by far the
-   most CVEs. Look at where `node-agent` and `payments-api` rank against it, and think about why.
+2. Compare the **Priority** column with the CVE counts from step 3. `node-agent` has by far the most
+   CVEs, mostly Moderate and Low. `legacy-frontend` has the fewest, but several of them are Critical
+   and fixable. The ranking does not follow the CVE count. Think about why.
 3. Open `node-agent` → **Risk indicators**. Expect to see:
    - **Service Configurations**: *privileged* container, capabilities not dropped, read-write root filesystem
    - **RBAC Configuration**: the ServiceAccount can use the `privileged` SCC
@@ -31,7 +32,7 @@ create some suspicious runtime activity, watch it change the ranking, trace real
 4. Open `legacy-frontend` → **Risk indicators**. Expect:
    - **Service Reachability**: port exposed **outside the cluster** (Route)
    - **Policy Violations**: *Environment Variable Contains Secret*, *Container using read-write root filesystem*, and others
-   - **Image Vulnerabilities**: a very high CVE count
+   - **Image Vulnerabilities**: fewer CVEs than the other images, but several Critical ones with fixes available
    - **Components Useful for Attackers**: package managers and shells that are present in the image
 5. Open `payments-api` → **Risk indicators**. Note that Log4Shell (CVSS 10.0) is on the Deferred list
    from step 3. The deployment is still at risk, because its image has other fixable, high-severity
@@ -42,14 +43,14 @@ create some suspicious runtime activity, watch it change the ranking, trace real
 6. Simulate what an attacker does after getting in: open a shell, run a package manager, and read a
    host file through the privileged agent:
    ```bash
-   oc --context security-ws exec -n acs-workshop deploy/legacy-frontend -- apt-get -v
+   oc --context security-ws exec -n acs-workshop deploy/legacy-frontend -- apk --version
    oc --context security-ws exec -n acs-workshop deploy/legacy-frontend -- sh -c 'id; cat /etc/passwd | head -3'
    oc --context security-ws exec -n acs-workshop deploy/node-agent -- sh -c 'cat /host/etc/hostname; ls /host/var/lib/kubelet | head -3'
    ```
 7. Wait about 1 minute, then check:
-   - **Violations**: new runtime alerts such as *Ubuntu Package Manager Execution* and *Kubernetes
+   - **Violations**: new runtime alerts such as *Alpine Linux Package Manager Execution* and *Kubernetes
      Actions: Exec into Pod*
-   - **Risk → legacy-frontend → Process discovery**: `apt-get`, `sh`, `id`, and `cat` appear in the
+   - **Risk → legacy-frontend → Process discovery**: `apk`, `sh`, `id`, and `cat` appear in the
      event timeline, outside the deployment's normal process baseline
    - The **Priority** of the affected deployments goes up. Runtime evidence adds to the risk score.
 8. Optional: on the **Process discovery** tab, **lock** the process baseline of `legacy-frontend`.
@@ -71,7 +72,7 @@ create some suspicious runtime activity, watch it change the ranking, trace real
 | Priority | Deployment | Main risk | Action | Step |
 |---|---|---|---|---|
 | 1 | `node-agent` | Privileged plus host access means container escape equals node compromise | Remove privilege and host mounts, rebase on a current UBI 9 image | 05 (block) and 06 (fix) |
-| 2 | `legacy-frontend` | Internet-facing, root, plaintext secret, hundreds of CVEs | Rebase on a supported Red Hat NGINX image, non-root, secret from a `Secret` | 05 and 06 |
+| 2 | `legacy-frontend` | Internet-facing, root, plaintext secret, fixable Critical CVEs | Rebase on a supported Red Hat NGINX image, non-root, secret from a `Secret` | 05 and 06 |
 | 3 | `payments-api` | Critical RCE with no patch available yet | Formal exception (done in 03), egress-deny NetworkPolicy as a compensating control, block new Log4Shell builds in CI | 05, 06, 07 |
 | — | All | Nothing stops a new vulnerable deployment | Policy-as-code guardrails with admission enforcement | 05 |
 
@@ -86,8 +87,9 @@ payments-api                            3
 ```
 
 The exact priority numbers are global across the cluster and depend on what else is running. What
-matters is the *relative* order: `node-agent` often outranks `legacy-frontend` despite having far
-fewer CVEs. **Violations** now lists runtime alerts for the `oc exec` activity, and the network
+matters is the *relative* order, and that it does not follow the CVE counts. `legacy-frontend` has
+the fewest CVEs but ranks high because it is internet-facing and runs as root. `node-agent` ranks
+high mainly because of its privileges, not its long list of Moderate and Low CVEs. **Violations** now lists runtime alerts for the `oc exec` activity, and the network
 graph shows `acs-workshop` without any NetworkPolicy.
 
 ## Official Documentation

@@ -1,6 +1,6 @@
 # 05-node-agent.yaml
-# Purpose: "Monitoring agent" that is set up as badly as possible: an outdated UBI 8.0
-# base image (2019), a privileged container, the host root filesystem mounted, and host
+# Purpose: "Monitoring agent" that is set up as badly as possible: an outdated UBI 8.4
+# base image (2021), a privileged container, the host root filesystem mounted, and host
 # PID and host network namespaces. Even though it is not exposed, RHACS ranks it near
 # the top of the Risk view.
 apiVersion: apps/v1
@@ -26,7 +26,7 @@ spec:
       hostNetwork: true
       containers:
         - name: agent
-          image: registry.access.redhat.com/ubi8/ubi:8.0
+          image: registry.access.redhat.com/ubi8/ubi:8.4
           command: ["/bin/sh", "-c", "while true; do sleep 3600; done"]
           securityContext:
             privileged: true

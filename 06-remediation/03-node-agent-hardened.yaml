@@ -1,6 +1,6 @@
 # 03-node-agent-hardened.yaml
 # Purpose: Fixes node-agent.
-#  - current UBI 9 minimal base image instead of UBI 8.0 (2019)
+#  - current UBI 9 minimal base image instead of UBI 8.4 (2021)
 #  - no privileged mode, no hostPID/hostNetwork, no hostPath mount of /
 #  - restricted-v2 SCC (the privileged RoleBinding is removed in README step 2)
 # A real node agent that needs host data should run as a DaemonSet with only the

@@ -1,6 +1,6 @@
 # 02-rbac.yaml
 # Purpose: ServiceAccounts that are given more SCC permissions than they need.
-#  - legacy-frontend: "anyuid" SCC, so the upstream NGINX 1.14 image runs as root
+#  - legacy-frontend: "anyuid" SCC, so the upstream NGINX 1.22 image runs as root
 #  - node-agent:      "privileged" SCC, so it can run a privileged, host-mounted container
 # RHACS reports both as risk indicators (RBAC reachability, privileged, root).
 apiVersion: v1

@@ -1,6 +1,8 @@
 # 03-legacy-frontend.yaml
 # Purpose: Internet-facing web tier built on an outdated upstream image
-# (docker.io/library/nginx:1.14.0, 2018, Debian 9 base, hundreds of CVEs, many of them fixable).
+# (docker.io/library/nginx:1.22.0-alpine, built October 2022, Alpine 3.16.2 base, many fixable
+# Important/Critical CVEs). Alpine is well covered by Scanner V4. Images on unsupported or
+# end-of-life OS versions would return almost no OS CVEs, see step 03.
 # Other deliberate risk factors:
 #  - runs as root (anyuid SCC)
 #  - a plaintext secret in an environment variable
@@ -27,7 +29,7 @@ spec:
       serviceAccountName: legacy-frontend
       containers:
         - name: nginx
-          image: docker.io/library/nginx:1.14.0
+          image: docker.io/library/nginx:1.22.0-alpine
           ports:
             - containerPort: 80
           env:

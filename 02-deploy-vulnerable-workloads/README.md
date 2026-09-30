@@ -9,9 +9,9 @@ secrets). Telling these two apart is the core idea of risk-based vulnerability m
 
 | Deployment | Image | Vulnerability profile | Configuration risk |
 |---|---|---|---|
-| `legacy-frontend` | `docker.io/library/nginx:1.14.0` | Outdated Debian 9 base, hundreds of CVEs, many fixable | Root user (anyuid SCC), plaintext secret in an env var, no resource limits, **internet-facing Route** |
+| `legacy-frontend` | `docker.io/library/nginx:1.22.0-alpine` | Outdated Alpine 3.16.2 base (2022), many fixable Important/Critical CVEs | Root user (anyuid SCC), plaintext secret in an env var, no resource limits, **internet-facing Route** |
 | `payments-api` | `ghcr.io/christophetd/log4shell-vulnerable-app` | **CVE-2021-44228 (Log4Shell)** and other Java CVEs | Default restricted SCC, internal only |
-| `node-agent` | `registry.access.redhat.com/ubi8/ubi:8.0` | Outdated 2019 UBI 8.0 base | **Privileged**, host PID and network, host `/` mounted, privileged SCC |
+| `node-agent` | `registry.access.redhat.com/ubi8/ubi:8.4` | Outdated 2021 UBI 8.4 base, many fixable RHSA errata | **Privileged**, host PID and network, host `/` mounted, privileged SCC |
 
 > **Warning:** These workloads are exploitable on purpose. Deploy them only on a disposable lab
 > cluster.
@@ -28,7 +28,7 @@ secrets). Telling these two apart is the core idea of risk-based vulnerability m
 |---|---|
 | `01-namespace.yaml` | `acs-workshop` namespace, with Pod Security Admission set to `privileged` on purpose |
 | `02-rbac.yaml` | ServiceAccounts and RoleBindings that grant the `anyuid` and `privileged` SCCs |
-| `03-legacy-frontend.yaml` | NGINX 1.14 Deployment, Service, and edge Route |
+| `03-legacy-frontend.yaml` | NGINX 1.22 Deployment, Service, and edge Route |
 | `04-log4shell-app.yaml` | Log4Shell-affected Spring Boot Deployment and Service |
 | `05-node-agent.yaml` | Privileged, host-mounted "agent" Deployment |
 
@@ -67,7 +67,7 @@ payments-api-xxxxxxxxxx-xxxxx      1/1     Running   0          60s
 
 $ curl -sI https://legacy-frontend-acs-workshop.apps.<cluster-domain> | head -3
 HTTP/1.1 200 OK
-server: nginx/1.14.0
+server: nginx/1.22.0
 ...
 ```
 
@@ -80,7 +80,7 @@ In the portal, **Violations** shows new alerts for the `acs-workshop` namespace.
 
 ## Why These Workloads Are Risky
 
-- **Old base images build up CVEs over time.** Nothing in the NGINX 1.14 or UBI 8.0 image changed,
+- **Old base images build up CVEs over time.** Nothing in the NGINX 1.22 or UBI 8.4 image changed,
   yet new CVEs keep being published against the packages inside them. Scanning only at build time
   misses this. RHACS keeps re-matching running images against current vulnerability data.
 - **Severity alone does not show risk.** A critical CVE in a privileged, internet-exposed pod is far

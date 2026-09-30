@@ -8,7 +8,7 @@ removed yet):
 
 | Deployment | Strategy | How |
 |---|---|---|
-| `legacy-frontend` | **Remediate** | Rebase from upstream `nginx:1.14.0` to the supported Red Hat `ubi9/nginx-124` image. Run as non-root under `restricted-v2`. Move the plaintext secret into a `Secret`. |
+| `legacy-frontend` | **Remediate** | Rebase from upstream `nginx:1.22.0-alpine` to the supported Red Hat `ubi9/nginx-124` image. Run as non-root under `restricted-v2`. Move the plaintext secret into a `Secret`. |
 | `node-agent` | **Remediate** | Current `ubi9/ubi-minimal` base image. Remove privileged mode, host namespaces, and the host mount. Remove the SCC grant. |
 | `payments-api` | **Mitigate** (compensating control) | No patched build exists. Apply a default-deny NetworkPolicy that blocks all egress, including DNS, so the Log4Shell JNDI callback cannot connect. Allow ingress only from the frontend. The CVE stays formally deferred (step 3) and excluded from enforcement (step 5) until a fixed image is available. |
 
@@ -81,7 +81,8 @@ risk went down.
    - **Violations**: the deploy-time violations for the old pod specs are **resolved**. Only
      `payments-api` still shows *Log4Shell* and *untrusted registry*, both inform-only.
    - **Vulnerability Management → Results** (namespace `acs-workshop`): the fixable
-     Important/Critical CVE count drops by more than an order of magnitude.
+     Important/Critical CVE count drops sharply. What remains comes mostly from `payments-api`, the
+     accepted risk.
    - **Network → Network Graph**: `acs-workshop` now shows NetworkPolicies. Select `payments-api`
      and check that egress is denied.
 
