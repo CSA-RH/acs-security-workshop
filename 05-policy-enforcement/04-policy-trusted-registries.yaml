@@ -1,0 +1,36 @@
+# 04-policy-trusted-registries.yaml
+# Purpose: Inform-only supply chain policy. Flags images that are pulled from
+# registries outside the approved list. It has no enforcement actions, so it shows
+# the difference between "inform" and "inform and enforce".
+apiVersion: config.stackrox.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: workshop-trusted-registries
+  namespace: stackrox
+  labels:
+    workshop: acs-vuln-mgmt
+spec:
+  policyName: "Workshop - Images from untrusted registries"
+  description: "Image is pulled from a registry that is not on the approved list."
+  rationale: "Images from unvetted public registries have no provenance, support, or security errata."
+  remediation: "Use images from registry.redhat.io, registry.access.redhat.com, quay.io, or the internal OpenShift registry."
+  categories:
+    - Supply Chain Security
+  severity: MEDIUM_SEVERITY
+  lifecycleStages:
+    - BUILD
+    - DEPLOY
+  eventSource: NOT_APPLICABLE
+  scope:
+    - namespace: acs-workshop
+  policySections:
+    - sectionName: "Registry not approved"
+      policyGroups:
+        - fieldName: Image Registry
+          booleanOperator: OR
+          negate: true
+          values:
+            - value: registry.redhat.io
+            - value: registry.access.redhat.com
+            - value: quay.io
+            - value: image-registry.openshift-image-registry.svc:5000

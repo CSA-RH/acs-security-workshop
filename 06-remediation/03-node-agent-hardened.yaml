@@ -1,0 +1,46 @@
+# 03-node-agent-hardened.yaml
+# Purpose: Fixes node-agent.
+#  - current UBI 9 minimal base image instead of UBI 8.0 (2019)
+#  - no privileged mode, no hostPID/hostNetwork, no hostPath mount of /
+#  - restricted-v2 SCC (the privileged RoleBinding is removed in README step 2)
+# A real node agent that needs host data should run as a DaemonSet with only the
+# specific hostPath directories and capabilities it needs, in a dedicated
+# platform namespace, reviewed as a policy exception.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-agent
+  namespace: acs-workshop
+  labels:
+    app: node-agent
+    app.kubernetes.io/part-of: acs-workshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node-agent
+  template:
+    metadata:
+      labels:
+        app: node-agent
+    spec:
+      serviceAccountName: node-agent
+      automountServiceAccountToken: false
+      containers:
+        - name: agent
+          image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+          command: ["/bin/sh", "-c", "while true; do sleep 3600; done"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault

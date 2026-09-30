@@ -1,0 +1,9 @@
+# 02-operatorgroup.yaml
+# Purpose: OperatorGroup with no targetNamespaces, so the RHACS Operator watches all
+# namespaces (the "All namespaces" install mode the RHACS Operator requires).
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: rhacs-operator
+  namespace: rhacs-operator
+spec: {}

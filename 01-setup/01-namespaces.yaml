@@ -1,0 +1,12 @@
+# 01-namespaces.yaml
+# Purpose: Namespaces for the RHACS Operator (rhacs-operator) and for the RHACS
+# components: Central, Scanner V4, Sensor, Collector, Admission Controller (stackrox).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rhacs-operator
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stackrox

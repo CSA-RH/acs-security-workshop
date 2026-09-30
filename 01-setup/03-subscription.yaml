@@ -1,0 +1,15 @@
+# 03-subscription.yaml
+# Purpose: Installs the RHACS Operator from the redhat-operators catalog through OLM.
+# The "stable" channel follows the latest RHACS release. To stay on 4.11, use
+# installPlanApproval: Manual and approve only rhacs-operator.v4.11.x InstallPlans.
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: rhacs-operator
+  namespace: rhacs-operator
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: rhacs-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

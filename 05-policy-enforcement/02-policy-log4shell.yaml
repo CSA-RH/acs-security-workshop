@@ -1,0 +1,35 @@
+# 02-policy-log4shell.yaml
+# Purpose: Stop new Log4Shell (CVE-2021-44228) images from being built.
+#  - BUILD:  fails the CI build (FAIL_BUILD_ENFORCEMENT)
+#  - DEPLOY: inform only, so the accepted payments-api keeps running while it is
+#            still visible on the Violations page
+apiVersion: config.stackrox.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: workshop-log4shell
+  namespace: stackrox
+  labels:
+    workshop: acs-vuln-mgmt
+spec:
+  policyName: "Workshop - Log4Shell CVE-2021-44228"
+  description: "Image contains log4j-core affected by CVE-2021-44228 (Log4Shell, remote code execution)."
+  rationale: "Log4Shell is exploited in the wild and gives unauthenticated remote code execution."
+  remediation: "Upgrade log4j-core to 2.17.1 or later and rebuild the image."
+  categories:
+    - Vulnerability Management
+  severity: CRITICAL_SEVERITY
+  lifecycleStages:
+    - BUILD
+    - DEPLOY
+  eventSource: NOT_APPLICABLE
+  enforcementActions:
+    - FAIL_BUILD_ENFORCEMENT
+  scope:
+    - namespace: acs-workshop
+  policySections:
+    - sectionName: "Log4Shell"
+      policyGroups:
+        - fieldName: CVE
+          booleanOperator: OR
+          values:
+            - value: CVE-2021-44228

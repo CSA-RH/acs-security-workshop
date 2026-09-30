@@ -1,0 +1,7 @@
+# Cluster registration secrets and init bundles contain credentials (step 01)
+*-crs.yaml
+*init-bundle*.yaml
+# Local roxctl binary and generated reports (steps 03 and 07)
+roxctl
+rhacs-reports/
+*.spdx.json

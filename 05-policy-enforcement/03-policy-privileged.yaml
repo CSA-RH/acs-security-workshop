@@ -1,0 +1,32 @@
+# 03-policy-privileged.yaml
+# Purpose: Block privileged containers in application namespaces. A privileged
+# container turns any container escape into full node compromise.
+apiVersion: config.stackrox.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: workshop-no-privileged
+  namespace: stackrox
+  labels:
+    workshop: acs-vuln-mgmt
+spec:
+  policyName: "Workshop - No privileged containers"
+  description: "Deployment runs a container in privileged mode."
+  rationale: "Privileged containers have full access to the host and bypass container isolation."
+  remediation: "Remove securityContext.privileged and grant only the specific capabilities that are required."
+  categories:
+    - Privileges
+  severity: CRITICAL_SEVERITY
+  lifecycleStages:
+    - DEPLOY
+  eventSource: NOT_APPLICABLE
+  enforcementActions:
+    - SCALE_TO_ZERO_ENFORCEMENT
+  scope:
+    - namespace: acs-workshop
+  policySections:
+    - sectionName: "Privileged"
+      policyGroups:
+        - fieldName: Privileged Container
+          booleanOperator: OR
+          values:
+            - value: "true"

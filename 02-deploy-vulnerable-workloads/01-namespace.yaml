@@ -1,0 +1,15 @@
+# 01-namespace.yaml
+# Purpose: Workshop application namespace. Pod Security Admission label sync is
+# turned off and the namespace is set to "privileged" ON PURPOSE, so the
+# over-privileged node-agent can run and RHACS can show the risk it adds.
+# 06-remediation/ reverts this.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: acs-workshop
+  labels:
+    app.kubernetes.io/part-of: acs-workshop
+    security.openshift.io/scc.podSecurityLabelSync: "false"
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

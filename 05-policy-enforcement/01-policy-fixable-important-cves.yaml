@@ -1,0 +1,49 @@
+# 01-policy-fixable-important-cves.yaml
+# Purpose: Guardrail. Workloads in acs-workshop must not run images that have a CVE
+# of severity Important or higher for which a fix exists.
+#  - BUILD:  roxctl image check fails the CI build (step 07)
+#  - DEPLOY: the admission controller rejects creates/updates; Sensor scales existing
+#            violating deployments to zero
+# payments-api is excluded as a documented, time-boxed risk acceptance (see the step 03
+# exception and the step 06 compensating control).
+apiVersion: config.stackrox.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: workshop-fixable-important-cves
+  namespace: stackrox
+  labels:
+    workshop: acs-vuln-mgmt
+spec:
+  policyName: "Workshop - Fixable CVEs of severity Important or higher"
+  description: "Image contains a fixable vulnerability with severity Important or Critical."
+  rationale: "A fix is available. Running the vulnerable version is an avoidable risk."
+  remediation: "Rebuild or rebase the image on a patched version (see the 'Fixed by' column in Vulnerability Management), then redeploy."
+  categories:
+    - Vulnerability Management
+  severity: HIGH_SEVERITY
+  lifecycleStages:
+    - BUILD
+    - DEPLOY
+  eventSource: NOT_APPLICABLE
+  enforcementActions:
+    - FAIL_BUILD_ENFORCEMENT
+    - SCALE_TO_ZERO_ENFORCEMENT
+  scope:
+    - namespace: acs-workshop
+  exclusions:
+    - name: "Risk acceptance TICKET-123 - payments-api (no vendor patch, egress blocked)"
+      deployment:
+        name: payments-api
+        scope:
+          namespace: acs-workshop
+  policySections:
+    - sectionName: "Fixable Important or Critical CVE"
+      policyGroups:
+        - fieldName: Fixable
+          booleanOperator: OR
+          values:
+            - value: "true"
+        - fieldName: Severity
+          booleanOperator: OR
+          values:
+            - value: ">=IMPORTANT"

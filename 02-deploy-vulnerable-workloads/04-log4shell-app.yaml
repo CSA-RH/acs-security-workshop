@@ -1,0 +1,47 @@
+# 04-log4shell-app.yaml
+# Purpose: Spring Boot app that bundles log4j-core 2.14.1, which is affected by
+# CVE-2021-44228 (Log4Shell, CVSS 10.0, fixable). It is a public test image with no
+# patched build, which makes it a realistic "cannot patch right now" case for the
+# exception and compensating-control exercises in steps 3 and 6.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-api
+  namespace: acs-workshop
+  labels:
+    app: payments-api
+    app.kubernetes.io/part-of: acs-workshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payments-api
+  template:
+    metadata:
+      labels:
+        app: payments-api
+    spec:
+      containers:
+        - name: payments-api
+          image: ghcr.io/christophetd/log4shell-vulnerable-app:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-api
+  namespace: acs-workshop
+spec:
+  selector:
+    app: payments-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

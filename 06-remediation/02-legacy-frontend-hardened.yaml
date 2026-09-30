@@ -1,0 +1,64 @@
+# 02-legacy-frontend-hardened.yaml
+# Purpose: Fixes legacy-frontend.
+#  - rebased on the supported Red Hat UBI 9 NGINX 1.24 image (security errata, non-root, port 8080)
+#  - runs under the default restricted-v2 SCC (the anyuid RoleBinding is removed in README step 2)
+#  - DB_PASSWORD comes from a Secret instead of a plaintext env var
+#  - drops all capabilities, no privilege escalation, RuntimeDefault seccomp, resource limits
+#  - does not mount a service account token (the app never calls the API server)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legacy-frontend
+  namespace: acs-workshop
+  labels:
+    app: legacy-frontend
+    app.kubernetes.io/part-of: acs-workshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legacy-frontend
+  template:
+    metadata:
+      labels:
+        app: legacy-frontend
+    spec:
+      serviceAccountName: legacy-frontend
+      automountServiceAccountToken: false
+      containers:
+        - name: nginx
+          image: registry.access.redhat.com/ubi9/nginx-124:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: legacy-frontend-db
+                  key: DB_PASSWORD
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legacy-frontend
+  namespace: acs-workshop
+spec:
+  selector:
+    app: legacy-frontend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

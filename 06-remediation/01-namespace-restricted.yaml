@@ -1,0 +1,12 @@
+# 01-namespace-restricted.yaml
+# Purpose: Restores a hardened namespace. Pod Security Admission enforces the
+# "restricted" profile, and the step 02 opt-out from PSA label sync is removed.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: acs-workshop
+  labels:
+    app.kubernetes.io/part-of: acs-workshop
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

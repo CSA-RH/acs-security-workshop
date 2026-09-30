@@ -1,0 +1,62 @@
+# 03-legacy-frontend.yaml
+# Purpose: Internet-facing web tier built on an outdated upstream image
+# (docker.io/library/nginx:1.14.0, 2018, Debian 9 base, hundreds of CVEs, many of them fixable).
+# Other deliberate risk factors:
+#  - runs as root (anyuid SCC)
+#  - a plaintext secret in an environment variable
+#  - no resource requests or limits
+#  - exposed to the internet through a Route
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legacy-frontend
+  namespace: acs-workshop
+  labels:
+    app: legacy-frontend
+    app.kubernetes.io/part-of: acs-workshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legacy-frontend
+  template:
+    metadata:
+      labels:
+        app: legacy-frontend
+    spec:
+      serviceAccountName: legacy-frontend
+      containers:
+        - name: nginx
+          image: docker.io/library/nginx:1.14.0
+          ports:
+            - containerPort: 80
+          env:
+            - name: DB_PASSWORD          # plaintext secret: triggers "Environment Variable Contains Secret"
+              value: "SuperSecret123!"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legacy-frontend
+  namespace: acs-workshop
+spec:
+  selector:
+    app: legacy-frontend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 80
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: legacy-frontend
+  namespace: acs-workshop
+spec:
+  to:
+    kind: Service
+    name: legacy-frontend
+  port:
+    targetPort: http
+  tls:
+    termination: edge

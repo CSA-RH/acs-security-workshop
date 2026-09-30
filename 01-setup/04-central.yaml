@@ -1,0 +1,16 @@
+# 04-central.yaml
+# Purpose: Deploys RHACS Central services (Central, Central DB, Scanner V4) and
+# exposes the portal through an OpenShift Route. Scanner V4 is the scanner the
+# workshop uses for image, node, and SBOM data.
+apiVersion: platform.stackrox.io/v1alpha1
+kind: Central
+metadata:
+  name: stackrox-central-services
+  namespace: stackrox
+spec:
+  central:
+    exposure:
+      route:
+        enabled: true
+  scannerV4:
+    scannerComponent: Enabled

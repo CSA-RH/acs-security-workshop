@@ -1,0 +1,79 @@
+# 04-network-policies.yaml
+# Purpose: Network segmentation for acs-workshop, and the compensating control for
+# the unpatched Log4Shell in payments-api.
+#  1. default-deny-all:           no ingress and no egress unless explicitly allowed. This also
+#                                 blocks DNS, which cuts off the JNDI/LDAP/RMI callback and
+#                                 DNS-based exfiltration that Log4Shell exploitation depends on.
+#  2. allow-router-to-frontend:   only the OpenShift router may reach legacy-frontend.
+#  3. allow-frontend-to-payments: only legacy-frontend may call payments-api.
+#  4. allow-frontend-egress:      legacy-frontend may reach payments-api (egress side of rule 3).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: acs-workshop
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-router-to-frontend
+  namespace: acs-workshop
+spec:
+  podSelector:
+    matchLabels:
+      app: legacy-frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              policy-group.network.openshift.io/ingress: ""
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-to-payments
+  namespace: acs-workshop
+spec:
+  podSelector:
+    matchLabels:
+      app: payments-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: legacy-frontend
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-egress
+  namespace: acs-workshop
+spec:
+  podSelector:
+    matchLabels:
+      app: legacy-frontend
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: payments-api
+      ports:
+        - protocol: TCP
+          port: 8080

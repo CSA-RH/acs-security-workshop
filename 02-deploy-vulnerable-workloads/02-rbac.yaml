@@ -1,0 +1,44 @@
+# 02-rbac.yaml
+# Purpose: ServiceAccounts that are given more SCC permissions than they need.
+#  - legacy-frontend: "anyuid" SCC, so the upstream NGINX 1.14 image runs as root
+#  - node-agent:      "privileged" SCC, so it can run a privileged, host-mounted container
+# RHACS reports both as risk indicators (RBAC reachability, privileged, root).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: legacy-frontend
+  namespace: acs-workshop
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: node-agent
+  namespace: acs-workshop
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: legacy-frontend-anyuid
+  namespace: acs-workshop
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:anyuid
+subjects:
+  - kind: ServiceAccount
+    name: legacy-frontend
+    namespace: acs-workshop
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: node-agent-privileged
+  namespace: acs-workshop
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:privileged
+subjects:
+  - kind: ServiceAccount
+    name: node-agent
+    namespace: acs-workshop
