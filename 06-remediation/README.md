@@ -18,7 +18,7 @@ risk went down.
 
 ## Prerequisites
 
-- [Step 5](../05-policy-enforcement/) completed. `legacy-frontend` is still running in its vulnerable version (blocked from changes), and `node-agent` no longer exists (its re-creation was blocked).
+- [Step 5](../05-policy-enforcement/) completed. `legacy-frontend` and `node-agent` do not exist (their deployment was blocked), and `payments-api` runs under its exclusion.
 - `cluster-admin` (to remove the SCC RoleBindings)
 - OVN-Kubernetes network plugin (the default on OpenShift 4.19+) for NetworkPolicy support
 
@@ -61,8 +61,8 @@ risk went down.
    oc --context security-ws apply -f 04-network-policies.yaml
    oc --context security-ws get pods -n acs-workshop -w
    ```
-   The admission controller admits the `legacy-frontend` update and the `node-agent` creation,
-   because the new pod specs no longer violate the enforced policies.
+   The same admission controller that blocked the originals in step 5 now admits both deployments,
+   because the hardened pod specs no longer violate the enforced policies.
 
 5. Check the application and the compensating control:
    ```bash
@@ -161,8 +161,8 @@ oc --context security-ws delete secret legacy-frontend-db -n acs-workshop --igno
    follow the [step 5 Clean Up](../05-policy-enforcement/README.md#clean-up). It removes the
    policies and recreates the namespace labels, the RBAC, and the original deployments.
 
-3. Re-apply the guardrails. Follow [step 5](../05-policy-enforcement/README.md#steps), steps 1–3:
-   apply the policies, check them, and click **Reassess All**. This also brings back the
+3. Re-apply the guardrails. Follow [step 5](../05-policy-enforcement/README.md#steps), steps 1–4:
+   remove the workloads, apply and check the policies, and see the originals blocked. This also brings back the
    `payments-api` exclusion if you removed it in step 7 of this README.
 
 4. If you cancelled the Log4Shell deferral in step 7 of this README, request and approve it again
@@ -173,7 +173,7 @@ Check before re-running this step:
 ```bash
 oc --context security-ws get networkpolicy -n acs-workshop                      # No resources found
 oc --context security-ws get secret legacy-frontend-db -n acs-workshop         # NotFound
-oc --context security-ws get deploy -n acs-workshop      # legacy-frontend running (vulnerable), node-agent absent
+oc --context security-ws get deploy -n acs-workshop      # legacy-frontend and node-agent absent, payments-api running
 ```
 
 ## Next

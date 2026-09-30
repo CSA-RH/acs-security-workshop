@@ -36,43 +36,40 @@ other workloads on the cluster.
 
 ## Steps
 
-1. Apply the policies. They must be created in the namespace where Central runs:
+1. **Remove the running workloads.** RHACS does not scale down deployments that already exist when
+   a policy changes (*detect, don't disrupt*); it blocks them at their next change. To show
+   admission control clearly, start from an empty namespace. The namespace, RBAC, Services, and
+   Route stay in place.
    ```bash
    cd ../05-policy-enforcement
+   oc --context security-ws delete deployment legacy-frontend payments-api node-agent -n acs-workshop
+   ```
+
+2. **Apply the policies.** They must be created in the namespace where Central runs:
+   ```bash
    oc --context security-ws apply -f .
    ```
 
-2. Check that Central accepted each policy:
+3. **Check that Central accepted each policy:**
    ```bash
    oc --context security-ws get securitypolicies -n stackrox -l workshop=acs-vuln-mgmt \
      -o 'custom-columns=NAME:.metadata.name,ACCEPTED:.status.conditions[?(@.type=="AcceptedByCentral")].status,POLICY_ID:.status.policyId'
    ```
    The policies now appear under **Platform Configuration → Policy Management**, marked as managed
-   externally. Edits made in the portal are overwritten by the CR, and the CR is the source of truth.
+   externally. Edits made in the portal are overwritten by the CR, and the CR is the source of
+   truth. Wait about 30 seconds so Sensor and the admission controller receive them.
 
-3. **Existing deployments: detect, don't disrupt.** Go to **Policy Management** and click
-   **Reassess All**. RHACS re-evaluates every running deployment against the new policies:
-   - **Violations** now lists `legacy-frontend` (fixable Important/Critical CVEs) and `node-agent`
-     (privileged, fixable Important CVEs) under the *Workshop* policies, with enforcement noted.
-   - The workloads **keep running**. RHACS does not scale down deployments that already exist when
-     a policy changes, which avoids outages caused by a new rule. Enforcement applies at their
-     next change, which the next command shows:
+4. **Re-deploy the original application.** Apply exactly the same manifests as in step 2:
    ```bash
-   oc --context security-ws scale deploy/legacy-frontend -n acs-workshop --replicas=2
+   oc --context security-ws apply -f ../02-deploy-vulnerable-workloads/
+   oc --context security-ws get deploy -n acs-workshop
    ```
-   The admission controller rejects the scale request: the running version stays, but it cannot
-   grow or change until it is fixed. `payments-api` is not affected because of its exclusion.
+   - `legacy-frontend` is **denied**: fixable Important/Critical CVEs.
+   - `node-agent` is **denied**: privileged container, and fixable Important CVEs.
+   - `payments-api` is **admitted**: it is covered by the documented exclusion (accepted risk).
 
-4. **Hard enforcement at admission.** Try to create a new deployment from the vulnerable image:
-   ```bash
-   oc --context security-ws create deployment nginx-test -n acs-workshop --image=docker.io/library/nginx:1.22.0-alpine
-   ```
-   Then try to recreate the privileged agent:
-   ```bash
-   oc --context security-ws delete -f ../02-deploy-vulnerable-workloads/05-node-agent.yaml
-   oc --context security-ws apply -f ../02-deploy-vulnerable-workloads/05-node-agent.yaml
-   ```
-   The API server rejects both requests. See the expected output below.
+   The namespace, RBAC, Services, and Route are reported as `unchanged`. Only the vulnerable pod
+   specs are rejected. Each rejected attempt also shows up in **Violations**, marked as enforced.
 
 5. **Emergency bypass (break-glass).** Enforcement can be bypassed on purpose, and every bypass is
    audited:
@@ -109,17 +106,17 @@ workshop-log4shell                True       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxx
 workshop-no-privileged            True       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 workshop-trusted-registries       True       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
-$ oc --context security-ws get deploy -n acs-workshop          # after "Reassess All": unchanged
-NAME              READY   UP-TO-DATE   AVAILABLE   AGE
-legacy-frontend   1/1     1            1           40m
-node-agent        1/1     1            1           40m
-payments-api      1/1     1            1           40m
-
-$ oc --context security-ws scale deploy/legacy-frontend -n acs-workshop --replicas=2
-Error from server (Failed currently enforced policies from RHACS): admission webhook "policyeval.stackrox.io" denied the request.
-
-$ oc --context security-ws create deployment nginx-test -n acs-workshop --image=docker.io/library/nginx:1.22.0-alpine
-error: failed to create deployment: admission webhook "policyeval.stackrox.io" denied the request:
+$ oc --context security-ws apply -f ../02-deploy-vulnerable-workloads/
+namespace/acs-workshop unchanged
+serviceaccount/legacy-frontend unchanged
+serviceaccount/node-agent unchanged
+rolebinding.rbac.authorization.k8s.io/legacy-frontend-anyuid unchanged
+rolebinding.rbac.authorization.k8s.io/node-agent-privileged unchanged
+service/legacy-frontend unchanged
+route.route.openshift.io/legacy-frontend unchanged
+deployment.apps/payments-api created
+service/payments-api unchanged
+Error from server (Failed currently enforced policies from RHACS): error when creating "../02-deploy-vulnerable-workloads/03-legacy-frontend.yaml": admission webhook "policyeval.stackrox.io" denied the request:
 The attempted operation violated 1 enforced policy, described below:
 
 Policy: Workshop - Fixable CVEs of severity Important or higher
@@ -130,9 +127,20 @@ Policy: Workshop - Fixable CVEs of severity Important or higher
 - Remediation:
     ↳ Rebuild or rebase the image on a patched version ...
 - Violations:
-    - Fixable CVE-XXXX-XXXXX (CVSS X.X) (severity Important) found in component '...' ...
+    - Fixable CVE-XXXX-XXXXX (CVSS X.X) (severity Critical) found in component '...' ...
 
 In case of emergency, add the annotation {"admission.stackrox.io/break-glass": "ticket-1234"} to your deployment with an updated ticket number
+Error from server (Failed currently enforced policies from RHACS): error when creating "../02-deploy-vulnerable-workloads/05-node-agent.yaml": admission webhook "policyeval.stackrox.io" denied the request:
+The attempted operation violated 2 enforced policies, described below:
+
+Policy: Workshop - No privileged containers
+...
+Policy: Workshop - Fixable CVEs of severity Important or higher
+...
+
+$ oc --context security-ws get deploy -n acs-workshop
+NAME           READY   UP-TO-DATE   AVAILABLE   AGE
+payments-api   1/1     1            1           30s
 
 $ roxctl image check --image ghcr.io/christophetd/log4shell-vulnerable-app:latest
 ...
@@ -183,8 +191,8 @@ workload running, no enforcement. If you completed [step 6](../06-remediation/),
 first. It ends by pointing back here.
 
 ```bash
-# 1. Test deployments from steps 4 and 5 (they may not exist)
-oc --context security-ws delete deployment nginx-test nginx-breakglass -n acs-workshop --ignore-not-found
+# 1. Break-glass test deployment from part 5 (it may not exist)
+oc --context security-ws delete deployment nginx-breakglass -n acs-workshop --ignore-not-found
 
 # 2. Remove the policies. config-controller deletes them from Central.
 oc --context security-ws delete securitypolicies.config.stackrox.io -n stackrox -l workshop=acs-vuln-mgmt --ignore-not-found
@@ -195,9 +203,8 @@ curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ROX_ENDPOINT}/v1
 ```
 
 If the count is not `0`, wait about 30 seconds and check again. Sensor and the admission controller
-receive the policy removal shortly after Central. Then restore the step 2 workloads. `node-agent`
-was deleted in step 5 and its re-creation was blocked.
-Recreating them gives a clean state:
+receive the policy removal shortly after Central. Then restore the step 2 workloads. `legacy-frontend` and `node-agent` were blocked in step 5
+(or replaced by hardened versions if you did step 6). Recreating them gives a clean state:
 
 ```bash
 # 4. Recreate the original vulnerable workloads (namespace, RBAC, and all three deployments)
