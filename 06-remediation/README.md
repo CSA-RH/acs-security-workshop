@@ -18,7 +18,7 @@ risk went down.
 
 ## Prerequisites
 
-- [Step 5](../05-policy-enforcement/) completed. `legacy-frontend` and `node-agent` were scaled to 0 by RHACS.
+- [Step 5](../05-policy-enforcement/) completed. `legacy-frontend` is still running in its vulnerable version (blocked from changes), and `node-agent` no longer exists (its re-creation was blocked).
 - `cluster-admin` (to remove the SCC RoleBindings)
 - OVN-Kubernetes network plugin (the default on OpenShift 4.19+) for NetworkPolicy support
 
@@ -61,8 +61,8 @@ risk went down.
    oc --context security-ws apply -f 04-network-policies.yaml
    oc --context security-ws get pods -n acs-workshop -w
    ```
-   The admission controller admits these updates, including scaling back to 1 replica, because the
-   new pod specs no longer violate the enforced policies.
+   The admission controller admits the `legacy-frontend` update and the `node-agent` creation,
+   because the new pod specs no longer violate the enforced policies.
 
 5. Check the application and the compensating control:
    ```bash
@@ -173,7 +173,7 @@ Check before re-running this step:
 ```bash
 oc --context security-ws get networkpolicy -n acs-workshop                      # No resources found
 oc --context security-ws get secret legacy-frontend-db -n acs-workshop         # NotFound
-oc --context security-ws get deploy -n acs-workshop      # legacy-frontend and node-agent at 0/0 after Reassess All
+oc --context security-ws get deploy -n acs-workshop      # legacy-frontend running (vulnerable), node-agent absent
 ```
 
 ## Next

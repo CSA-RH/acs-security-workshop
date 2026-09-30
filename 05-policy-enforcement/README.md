@@ -9,7 +9,9 @@ Central, so they can be versioned in Git and delivered with OpenShift GitOps. Th
 at two lifecycle stages:
 
 - **Deploy stage**: the RHACS **admission controller** rejects non-compliant creates and updates
-  (hard enforcement). Sensor scales existing violating deployments to zero (soft enforcement).
+  (hard enforcement). Sensor scales *newly created* violating deployments to zero if they get past
+  admission (soft enforcement). Deployments that already exist are reported as violations, not
+  scaled down; they are blocked at their next change.
 - **Build stage**: the same policies make `roxctl image check` fail in CI (used in step 7).
 
 | File | Policy | Stages | Enforcement |
@@ -43,19 +45,23 @@ other workloads on the cluster.
 2. Check that Central accepted each policy:
    ```bash
    oc --context security-ws get securitypolicies -n stackrox -l workshop=acs-vuln-mgmt \
-     -o custom-columns=NAME:.metadata.name,ACCEPTED:.status.accepted,POLICY_ID:.status.policyId,MESSAGE:.status.message
+     -o 'custom-columns=NAME:.metadata.name,ACCEPTED:.status.conditions[?(@.type=="AcceptedByCentral")].status,POLICY_ID:.status.policyId'
    ```
    The policies now appear under **Platform Configuration → Policy Management**, marked as managed
    externally. Edits made in the portal are overwritten by the CR, and the CR is the source of truth.
 
-3. **Enforce on existing deployments.** Policy changes act on running workloads only at the next
-   Kubernetes event for them. To apply them now, go to **Policy Management** and click
-   **Reassess All**. Then watch the result:
+3. **Existing deployments: detect, don't disrupt.** Go to **Policy Management** and click
+   **Reassess All**. RHACS re-evaluates every running deployment against the new policies:
+   - **Violations** now lists `legacy-frontend` (fixable Important/Critical CVEs) and `node-agent`
+     (privileged, fixable Important CVEs) under the *Workshop* policies, with enforcement noted.
+   - The workloads **keep running**. RHACS does not scale down deployments that already exist when
+     a policy changes, which avoids outages caused by a new rule. Enforcement applies at their
+     next change, which the next command shows:
    ```bash
-   oc --context security-ws get deploy -n acs-workshop -w
+   oc --context security-ws scale deploy/legacy-frontend -n acs-workshop --replicas=2
    ```
-   Sensor scales `legacy-frontend` (fixable Important CVEs) and `node-agent` (privileged, and old
-   image) to **0 replicas**. `payments-api` keeps running because it is covered by the exclusion.
+   The admission controller rejects the scale request: the running version stays, but it cannot
+   grow or change until it is fixed. `payments-api` is not affected because of its exclusion.
 
 4. **Hard enforcement at admission.** Try to create a new deployment from the vulnerable image:
    ```bash
@@ -97,17 +103,20 @@ other workloads on the cluster.
 
 ```text
 $ oc --context security-ws get securitypolicies -n stackrox -l workshop=acs-vuln-mgmt -o custom-columns=...
-NAME                              ACCEPTED   POLICY_ID                              MESSAGE
-workshop-fixable-important-cves   true       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-workshop-log4shell                true       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-workshop-no-privileged            true       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-workshop-trusted-registries       true       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+NAME                              ACCEPTED   POLICY_ID
+workshop-fixable-important-cves   True       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+workshop-log4shell                True       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+workshop-no-privileged            True       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+workshop-trusted-registries       True       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
-$ oc --context security-ws get deploy -n acs-workshop          # after "Reassess All"
+$ oc --context security-ws get deploy -n acs-workshop          # after "Reassess All": unchanged
 NAME              READY   UP-TO-DATE   AVAILABLE   AGE
-legacy-frontend   0/0     0            0           40m
-node-agent        0/0     0            0           40m
+legacy-frontend   1/1     1            1           40m
+node-agent        1/1     1            1           40m
 payments-api      1/1     1            1           40m
+
+$ oc --context security-ws scale deploy/legacy-frontend -n acs-workshop --replicas=2
+Error from server (Failed currently enforced policies from RHACS): admission webhook "policyeval.stackrox.io" denied the request.
 
 $ oc --context security-ws create deployment nginx-test -n acs-workshop --image=docker.io/library/nginx:1.22.0-alpine
 error: failed to create deployment: admission webhook "policyeval.stackrox.io" denied the request:
@@ -187,7 +196,7 @@ curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ROX_ENDPOINT}/v1
 
 If the count is not `0`, wait about 30 seconds and check again. Sensor and the admission controller
 receive the policy removal shortly after Central. Then restore the step 2 workloads. `node-agent`
-was deleted in step 5 and its re-creation was blocked, and the other two were scaled to 0.
+was deleted in step 5 and its re-creation was blocked.
 Recreating them gives a clean state:
 
 ```bash
