@@ -76,11 +76,13 @@ other workloads on the cluster.
    ```bash
    oc --context security-ws create deployment nginx-breakglass -n acs-workshop --image=docker.io/library/nginx:1.22.0-alpine \
      --dry-run=client -o yaml \
+     | oc --context security-ws set serviceaccount --local -f - legacy-frontend -o yaml \
      | oc --context security-ws annotate --local -f - admission.stackrox.io/break-glass=TICKET-456 -o yaml \
      | oc --context security-ws apply -f -
    ```
-   The deployment is admitted, and **Violations** shows a new *Emergency Deployment Annotation*
-   alert. Remove it when you are done:
+   The deployment is admitted and starts. It uses the `legacy-frontend` ServiceAccount, so it gets
+   the same `anyuid` SCC as the real frontend. **Violations** shows a new *Emergency Deployment
+   Annotation* alert. Remove it when you are done:
    `oc --context security-ws delete deployment nginx-breakglass -n acs-workshop`.
 
 6. **Shift-left preview.** Run the same policies as a build-time check from the CLI:
