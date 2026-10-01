@@ -67,7 +67,7 @@ risk went down.
 5. Check the application and the compensating control:
    ```bash
    # Frontend is served again through the Route (by the Red Hat hardened NGINX image)
-   curl -sI "https://$(oc --context security-ws get route legacy-frontend -n acs-workshop -o jsonpath='{.spec.host}')" | head -3
+   curl -skI "https://$(oc --context security-ws get route legacy-frontend -n acs-workshop -o jsonpath='{.spec.host}')" | head -3
 
    # It runs with the random, non-root UID assigned by the restricted-v2 SCC.
    # (The image is distroless: there is no shell or "id" command to exec into.)
@@ -106,7 +106,7 @@ legacy-frontend-yyyyyyyyyy-yyyyy   1/1     Running   0          45s
 node-agent-yyyyyyyyyy-yyyyy        1/1     Running   0          45s
 payments-api-xxxxxxxxxx-xxxxx      1/1     Running   0          70m
 
-$ curl -sI https://legacy-frontend-acs-workshop.apps.<cluster-domain> | head -3
+$ curl -skI https://legacy-frontend-acs-workshop.apps.<cluster-domain> | head -3
 HTTP/1.1 200 OK
 server: nginx/1.30.x
 ...

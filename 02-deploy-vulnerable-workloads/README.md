@@ -47,7 +47,7 @@ secrets). Telling these two apart is the core idea of risk-based vulnerability m
 
 3. Check that the frontend is reachable from the internet:
    ```bash
-   curl -sI "https://$(oc --context security-ws get route legacy-frontend -n acs-workshop -o jsonpath='{.spec.host}')" | head -3
+   curl -skI "https://$(oc --context security-ws get route legacy-frontend -n acs-workshop -o jsonpath='{.spec.host}')" | head -3
    ```
 
 4. Give Sensor about 1–2 minutes to report the deployments and Scanner V4 time to index the three
@@ -65,7 +65,7 @@ legacy-frontend-xxxxxxxxxx-xxxxx   1/1     Running   0          60s
 node-agent-xxxxxxxxxx-xxxxx        1/1     Running   0          60s
 payments-api-xxxxxxxxxx-xxxxx      1/1     Running   0          60s
 
-$ curl -sI https://legacy-frontend-acs-workshop.apps.<cluster-domain> | head -3
+$ curl -skI https://legacy-frontend-acs-workshop.apps.<cluster-domain> | head -3
 HTTP/1.1 200 OK
 server: nginx/1.22.0
 ...
