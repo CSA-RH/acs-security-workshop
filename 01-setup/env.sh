@@ -29,6 +29,8 @@ if [ "$ROX_ENDPOINT" = ":443" ]; then
   return 1
 fi
 export ROX_CENTRAL_ADDRESS=${ROX_ENDPOINT}
+export ACS_CENTRAL_ROUTE=${ROX_CENTRAL_ADDRESS}
+export ROX_INSECURE_CLIENT_SKIP_TLS_VERIFY=true
 
 _rox_admin_password="$(oc --context security-ws get secret central-htpasswd -n stackrox \
   -o go-template='{{index .data "password" | base64decode}}')"
